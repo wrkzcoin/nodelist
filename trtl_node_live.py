@@ -4,8 +4,10 @@ import asyncio, aiohttp
 from aiohttp import web
 import time, json
 import pymysql.cursors
+# redis
+import redis
 # For some environment variables
-import os
+import os, sys, traceback
 
 DBHOST = os.getenv('NODETRTL_MYSQL_HOST', 'localhost')
 DBUSER = os.getenv('NODETRTL_MYSQL_USER', 'user')
@@ -13,11 +15,19 @@ DBNAME = os.getenv('NODETRTL_MYSQL_NAME', 'dbname')
 DBPASS = os.getenv('NODETRTL_MYSQL_PASS', 'dbpassword')
         
 REMOTE_NODES_URL = "https://raw.githubusercontent.com/turtlecoin/turtlecoin-nodes-json/master/turtlecoin-nodes.json"
-SLEEP_CHECK = 15  # 15s
+SLEEP_CHECK = 30  # 30s
 NODE_LIVE_LIST = []
 REMOTE_NODES_JSON = None
 
 conn = None
+redis_pool = None
+redis_conn = None
+COIN = "TRTL"
+
+def init():
+    global redis_pool
+    print("PID %d: initializing redis pool..." % os.getpid())
+    redis_pool = redis.ConnectionPool(host='localhost', port=6379, decode_responses=True, db=36)
 
 # Open Connection
 def openConnection():
@@ -132,7 +142,21 @@ async def getNodeList():
 
 
 async def handle_get_nodelist(request):
-    global conn, REMOTE_NODES_URL, REMOTE_NODES_JSON
+    global conn, REMOTE_NODES_URL, REMOTE_NODES_JSON, redis_pool, redis_conn, COIN
+    response_obj = None
+    response_dump = None
+    if redis_conn is None:
+        try:
+            redis_conn = redis.Redis(connection_pool=redis_pool)
+        except Exception as e:
+            traceback.print_exc(file=sys.stdout)
+    if redis_conn.exists(f'{COIN}_NODELIVE'):
+        response_dump = redis_conn.get(f'{COIN}_NODELIVE')
+        expired_time = json.loads(response_dump)[0]
+        if int(time.time()) - expired_time < 60:
+            # if redis data is less than 60s.
+            response_obj = json.loads(json.loads(response_dump)[1])
+            return web.json_response(response_obj, status=200)
     time_out = 5
     node_list = []
     if REMOTE_NODES_JSON is None:
@@ -175,13 +199,18 @@ async def handle_get_nodelist(request):
     finally:
         conn.close()
     response_obj = {"nodes": node_list}
+    response_dump = [int(time.time()), json.dumps(response_obj)]
+    try:
+        redis_conn.set(f'{COIN}_NODELIVE', json.dumps(response_dump), ex=90)
+    except Exception as e:
+        traceback.print_exc(file=sys.stdout)
     # json_string = json.dumps(response_obj).replace(" ", "")
     return web.json_response(response_obj, status=200)
 
 
 # node_check_bg
 async def node_check_bg(app):
-    global NODE_LIVE_LIST
+    global NODE_LIVE_LIST, COIN
     tmp_node = []
     while True:
         try:
