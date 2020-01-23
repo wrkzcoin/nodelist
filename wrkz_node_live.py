@@ -173,11 +173,12 @@ async def handle_get_nodelist(request):
             for each in REMOTE_NODES_JSON:
                 node = each['url'].strip().lower() + ':' + str(each['port'])
                 sql = """ SELECT SUM(`online`) FROM (SELECT `pubnodes_wrkz`.`online`, `pubnodes_wrkz`.`timestamp` 
-                          FROM `pubnodes_wrkz` WHERE `pubnodes_wrkz`.`url_port` = %s 
+                          FROM `pubnodes_wrkz` WHERE `pubnodes_wrkz`.`url_port` = %s AND `pubnodes_wrkz`.`timestamp`> """ + str(int(time.time()-10800)) + """
                           ORDER BY `pubnodes_wrkz`.`timestamp` DESC LIMIT 100) AS `availability` """
                 cursor.execute(sql, (node))
                 node_avail = cursor.fetchone()
-                if node_avail:
+                availablity = int(node_avail['SUM(`online`)'] if node_avail['SUM(`online`)'] else 0) or 0
+                if availablity > 0:
                     sql = """ SELECT `name`, `url`, `port`, `ssl`, `cache`, `fee_address`, `fee_fee`, `online`, `version`, `timestamp`
                               FROM `pubnodes_wrkz` WHERE `pubnodes_wrkz`.`url_port` = %s 
                               ORDER BY `pubnodes_wrkz`.`timestamp` DESC LIMIT 1 """
@@ -191,7 +192,7 @@ async def handle_get_nodelist(request):
                             'ssl': True if node_data['ssl'] == 1 else False,
                             'cache': True if node_data['cache'] == 1 else False,
                             'fee': {'address': node_data['fee_address'], 'amount': node_data['fee_fee']},
-                            'availability': int(node_avail['SUM(`online`)'] if node_avail['SUM(`online`)'] else 0) or 0,
+                            'availability': availablity,
                             'online': True if node_data['online'] == 1 else False,
                             'version': node_data['version'],
                             'timestamp': node_data['timestamp']
