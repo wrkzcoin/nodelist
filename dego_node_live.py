@@ -45,11 +45,11 @@ def openConnection():
 
 
 def insert_nodes(nodelist):
-    global conn
+    global conn, COIN
     openConnection()
     try:
         with conn.cursor() as cursor:
-            sql = """ INSERT INTO `pubnodes_dego` (`name`, `url`, `port`, `url_port`, `ssl`, 
+            sql = """ INSERT INTO `pubnodes_"""+COIN.lower()+"""` (`name`, `url`, `port`, `url_port`, `ssl`, 
                       `cache`, `fee_address`, `fee_fee`, `online`, `version`, `timestamp`, `getinfo_dump`) 
                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) """
             for each in nodelist:
@@ -172,16 +172,16 @@ async def handle_get_nodelist(request):
         with conn.cursor() as cursor:
             for each in REMOTE_NODES_JSON:
                 node = each['url'].strip().lower() + ':' + str(each['port'])
-                sql = """ SELECT SUM(`online`) FROM (SELECT `pubnodes_dego`.`online`, `pubnodes_dego`.`timestamp` 
-                          FROM `pubnodes_dego` WHERE `pubnodes_dego`.`url_port` = %s AND `pubnodes_dego`.`timestamp`> """ + str(int(time.time()-10800)) + """
-                          ORDER BY `pubnodes_dego`.`timestamp` DESC LIMIT 100) AS `availability` """
+                sql = """ SELECT SUM(`online`) FROM (SELECT `pubnodes_"""+COIN.lower()+"""`.`online`, `pubnodes_"""+COIN.lower()+"""`.`timestamp` 
+                          FROM `pubnodes_"""+COIN.lower()+"""` WHERE `pubnodes_"""+COIN.lower()+"""`.`url_port` = %s AND `pubnodes_"""+COIN.lower()+"""`.`timestamp`> """ + str(int(time.time()-10800)) + """
+                          ORDER BY `pubnodes_"""+COIN.lower()+"""`.`timestamp` DESC LIMIT 100) AS `availability` """
                 cursor.execute(sql, (node))
                 node_avail = cursor.fetchone()
                 availablity = int(node_avail['SUM(`online`)'] if node_avail['SUM(`online`)'] else 0) or 0
                 if availablity > 0:
                     sql = """ SELECT `name`, `url`, `port`, `ssl`, `cache`, `fee_address`, `fee_fee`, `online`, `version`, `timestamp`
-                              FROM `pubnodes_dego` WHERE `pubnodes_dego`.`url_port` = %s 
-                              ORDER BY `pubnodes_dego`.`timestamp` DESC LIMIT 1 """
+                              FROM `pubnodes_"""+COIN.lower()+"""` WHERE `pubnodes_"""+COIN.lower()+"""`.`url_port` = %s 
+                              ORDER BY `pubnodes_"""+COIN.lower()+"""`.`timestamp` DESC LIMIT 1 """
                     cursor.execute(sql, (node))
                     node_data = cursor.fetchone()
                     if node_data:
