@@ -173,7 +173,7 @@ async def handle_get_nodelist(request):
             for each in REMOTE_NODES_JSON:
                 node = each['url'].strip().lower() + ':' + str(each['port'])
                 sql = """ SELECT SUM(`online`) FROM (SELECT `pubnodes_dego`.`online`, `pubnodes_dego`.`timestamp` 
-                          FROM `pubnodes_dego` WHERE `pubnodes_dego`.`url_port` = %s AND `pubnodes_wrkz`.`timestamp`> """ + str(int(time.time()-10800)) + """
+                          FROM `pubnodes_dego` WHERE `pubnodes_dego`.`url_port` = %s AND `pubnodes_dego`.`timestamp`> """ + str(int(time.time()-10800)) + """
                           ORDER BY `pubnodes_dego`.`timestamp` DESC LIMIT 100) AS `availability` """
                 cursor.execute(sql, (node))
                 node_avail = cursor.fetchone()
