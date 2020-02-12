@@ -15,7 +15,7 @@ DBNAME = os.getenv('NODEBTCMZ_MYSQL_NAME', 'dbname')
 DBPASS = os.getenv('NODEBTCMZ_MYSQL_PASS', 'dbpassword')
         
 REMOTE_NODES_URL = "https://raw.githubusercontent.com/bitcoinmono/bitcoinmono-nodes-json/master/bitcoinmono-nodes.json"
-SLEEP_CHECK = 30  # 30s
+SLEEP_CHECK = 10  # 10s
 NODE_LIVE_LIST = []
 REMOTE_NODES_JSON = None
 
@@ -63,7 +63,7 @@ def insert_nodes(nodelist):
 # Start the work
 async def getNodeList():
     global REMOTE_NODES_JSON
-    time_out = 8
+    time_out = 12
     async with aiohttp.ClientSession() as session:
         async with session.get(REMOTE_NODES_URL, timeout=time_out) as response:
             try:
@@ -117,7 +117,7 @@ async def getNodeList():
                 'ssl': 1 if 'ssl' in node and node['ssl'] == True else 0,
                 'cache': 1 if 'cache' in node and node['cache'] == True else 0,
                 'fee_address': getfee['address'] if 'address' in getfee and len(getfee['address']) == 99 else "",
-                'fee_fee': int(getfee['amount']) if 'amount' in getfee else 0,
+                'fee_fee': int(getfee['amount']) if ('amount' in getfee) and (len(str(getfee['amount'])) < 10) and (len(getfee['address']) == 99) else 0,,
                 'online': 1,
                 'version': getinfo['version'],
                 'timestamp': int(time.time()),
